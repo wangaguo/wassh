@@ -1,0 +1,118 @@
+hawk: {"ip": "tunnel_server.example.com", "port": '22'} #hawk is the tunnel server
+tunnel_local_ip: "localhost"
+tunnel_local_port: 14588
+
+#All server data
+sys_data: {
+  server1: {ip: "140.109.88.8", port: '22'},
+  server2: {ip: "myserver1.example.com", port: '22'},
+  #server in firewall, need login to tunnel server first. (hawk is the tunnel server)
+  server3: {ip: "192.168.2.5", port: '22', hawk: true},
+  server4: {ip: "192.168.2.8", port: '22', hawk: true},
+  #You can add description.
+  server5: {ip: "myserver2.example.com", port: '22', descr: "server1"},
+}
+
+#Groups for server
+sys_group: {
+  main: ["server1", "server2", "server5"],
+  internal: ["server3", "server4"]
+}
+
+tasks:
+  Array_Sample:
+    descr: Array sample
+    code:
+      - output = %x[hostname] 
+      - output += %x[pwd]
+  Multi_Line_Sample:
+    descr: multi line sample
+    code: |
+      output = %x[hostname] 
+      output += %x[pwd]
+  hostname:
+    descr: show hostname
+    code:
+      - output = ssh.exec!("hostname")
+  login:
+    descr: login ok?
+    code:
+      - output = "account:#{login} ssh ok"
+  memory: #check memory 
+    descr: check memory
+    code:
+      - output = ssh.exec!("uname -s")
+      - if(output =~ /^Linux/)
+      -   output = "#{ssh.exec!("cat /proc/meminfo |grep MemTotal")}"
+      -   output = "Linux: #{output}"
+      - else
+      -   output = "#{ssh.exec!("sysctl -a | grep hw.physmem")}"
+      -   output = "FreeBSD: #{output}"
+      - end
+      - output = "#{name}: #{output}"
+  users: #check system users
+    descr: check system users
+    code: |
+      output = ssh.exec!("cat /etc/passwd |egrep '(username1|username2|username3)'")
+      output = "#{output}"
+  disk_space: #check disk space
+    descr: check disk space
+    code: |
+      output = ssh.exec!("df -hP |egrep '^(/dev/|\\s)'")
+  disk_space_95: #check disk space and up then 95%
+    descr: check disk space and up then 95%
+    code: |
+      output = ssh.exec!("df -hP |egrep '^(/dev/|\\s)' |egrep '9[0-9]%'")
+  big_files: #check big file
+    descr: check big files
+    code: |
+      output = ssh.exec!("find /var/log /home/ " +
+                              " -type f -size +10M -name '*log' -exec ls -lFh {} \\;")
+      output = output.split("\n").map{|l| if l !~ /^find:/ then l end}.compact.join("\n") unless output.nil?
+  vt_support: #check vt support
+    descr: check vt support? and cpu count
+    code: |
+      output = ssh.exec!("uname -s")
+      if(output =~ /^Linux/)
+        output = "Linux: VT:"
+        if "#{ssh.exec!("egrep -c '(vmx|svm)' /proc/cpuinfo")}".to_i > 0
+          output += "yes"
+        else
+          output += "no"
+        end
+        output += ", ncpu:"
+        output += ssh.exec!("egrep -c 'cpu family' /proc/cpuinfo")
+      else
+        output = "FreeBSD: VT:"
+        if "#{ssh.exec!("grep Features /var/run/dmesg.boot | egrep -ic '(vmx|svm)'")}".to_i > 0
+          output += "yes"
+        else
+          output += "no"
+        end
+        output += ", ncpu:"
+        output += "#{ssh.exec!("sysctl -a | grep hw.ncpu")}".match(/\d+/).to_s
+      end
+      output = "#{name}: #{output}"
+  passwd:
+    descr: change password(be careful)
+    before: |
+      @passwd_newpw = keyin("Enter new UNIX password")
+    code: |
+      output = ssh.exec!("echo -e '" + pw + "\n" + @passwd_newpw + "\n" + @passwd_newpw + "' | passwd")
+  nologin:
+    before: |
+      @nologin_login = keyin("Input login name")
+    code: |
+      output = ssh.exec!("uname -a")
+      if (output =~ /xen/)
+        output = ssh.exec!("sudo chsh -s /sbin/nologin " + @nologin_login)
+      elsif (output =~ /^Linux/)
+        output = ssh.exec!("sudo usermod -s /usr/sbin/nologin " + @nologin_login)
+      else
+        output = ssh.exec!("sudo pw usermod " + @nologin_login + " -s /usr/sbin/nologin")
+      end
+      output = "successed." if output.nil?
+  date:
+    descr: show system date
+    code: |
+      output = ssh.exec!("date")
