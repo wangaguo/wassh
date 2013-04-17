@@ -1,13 +1,10 @@
 #!/usr/bin/env ruby
-# encoding: utf-8
 require 'rubygems'
 require 'net/ssh'
 require 'yaml'
 require "logger"
 require 'optparse'
 $KCODE = 'u'
-#$:.unshift(File.join(File.dirname(__FILE__)))
-#Dir.chdir File.join(File.dirname(__FILE__))
 
 def putslogger(type, msg)
   puts msg
@@ -21,10 +18,8 @@ end
 def keyin(caption)
   begin
     print "#{caption}: "
-    #system "stty -echo"
     data = $stdin.gets.chomp
   ensure
-    #system "stty echo"
     puts ""
   end 
 end
@@ -106,9 +101,6 @@ hawk = conf["hawk"]
 tunnel_local_ip = conf["tunnel_local_ip"] 
 tunnel_local_port = conf["tunnel_local_port"]
 
-#tunnel_session = Net::SSH.start(hawk["ip"], login, {:password => pw, :port => hawk["port"]})
-#tunnel_session.forward.cancel_local(tunnel_local_port, tunnel_local_ip)
-#tunnel_session.forward.cancel_local(tunnel_local_port)
 tunnel_thread = ""
 msg = ""
 group_id = "" 
@@ -189,12 +181,11 @@ run_sys.each do |name|
     putslogger :i, "----- run #{name} ------------------"
     if s.nil?
       putslogger :e, "server data is not exists!"
-      next 
+      next
     end
-    #s[:hawk] ? sn = hawk : sn = s
+
     if s["hawk"]
       tunnel_session = Net::SSH.start(hawk["ip"], login, {:password => pw, :port => hawk["port"]})
-      #tunnel_session.forward.local(tunnel_local_ip, tunnel_local_port, s[:ip], s[:port])
       tunnel_session.forward.local(tunnel_local_port, s["ip"], s["port"])
       tunnel_thread = Thread.new do
         tunnel_session.loop {true}
@@ -266,12 +257,8 @@ run_sys.each do |name|
           end
       end
 
-      #puts output
-      #msg += output + "\n"
       putslogger :i, output
       if s["hawk"]
-        #puts "*********************************"
-        #tunnel_session.forward.cancel_local(tunnel_local_port, tunnel_local_ip)
         tunnel_session.forward.cancel_local(tunnel_local_ip)
         Thread.kill(tunnel_thread)
         tunnel_local_port += 1
@@ -280,10 +267,7 @@ run_sys.each do |name|
   rescue Net::SSH::AuthenticationFailed
     putslogger :e, "account or password error"
   rescue
-    #tunnel_session.forward.cancel_local(tunnel_local_port, tunnel_local_ip)
     putslogger :e, "error for #{name}"
     putslogger :e, "#{$!}\n#{$@}"
   end
 end
-#$log.info msg
-
