@@ -55,6 +55,11 @@ options = {}
      options[:task] = task 
    end
 
+   options[:command] = nil
+   opts.on('-c', '--command TASK', 'run command' ) do |command|
+     options[:command] = command 
+   end
+
    options[:groups] = nil
    opts.on('-g', '--groups GROUPS', 'run group name, separated by comma.' ) do |groups|
      options[:groups] = groups
@@ -104,7 +109,7 @@ tunnel_local_port = conf["tunnel_local_port"]
 tunnel_thread = ""
 msg = ""
 group_id = "" 
-task_id = "1"
+task_id = "0"
 run_sys = []
 
 group_id = options[:groups] unless options[:groups].nil?
@@ -162,7 +167,7 @@ else
 end
 
 #start
-task_before = tasks[task_id]["before"]
+task_before = tasks[task_id]["before"] unless tasks[task_id].nil?
 if task_before
   begin
     if task_before.class == Array
@@ -195,7 +200,9 @@ run_sys.each do |name|
     end
 
     Net::SSH.start(s["ip"], login, {:password => pw, :port => s["port"]}) do |ssh|
+      output = ""
       case task_id
+        when "0"
         when "1" #check login
           output = ssh.exec!("hostname")
           output = "#{output} account:#{login} ssh ok"
@@ -256,6 +263,7 @@ run_sys.each do |name|
             end
           end
       end
+      output += ssh.exec!(options[:command]) unless options[:command].nil?
 
       putslogger :i, output
       if s["hawk"]
