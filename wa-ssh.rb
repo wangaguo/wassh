@@ -35,7 +35,7 @@ options = {}
      options[:tunnel_username] = username 
    end
 
-   options[:password] = nil
+   options[:tunnel_password] = nil
    opts.on('-P', '--tunnel-password PASSWORD', 'tunnel password' ) do |password|
      options[:tunnel_password] = password 
    end
@@ -263,7 +263,7 @@ run_sys.each do |name|
             end
           end
       end
-      output += ssh.exec!(options[:command]) unless options[:command].nil?
+      output += "#{ssh.exec!(options[:command])}" unless options[:command].nil?
 
       putslogger :i, output
       if s["hawk"]
